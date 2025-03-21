@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -24,7 +23,7 @@ const ApiIntegration = () => {
     enabled: !!projectId,
   });
 
-  const { mutate: regenerateToken, isLoading: isRegenerating } = useMutation({
+  const { mutate: regenerateToken, isPending } = useMutation({
     mutationFn: () => apiClient.generateToken(projectId!),
     onSuccess: (data) => {
       toast.success("New token generated successfully");
@@ -159,9 +158,9 @@ test('homepage visual test', async ({ page }) => {
               size="sm" 
               className="w-full"
               onClick={() => regenerateToken()}
-              disabled={isRegenerating}
+              disabled={isPending}
             >
-              <RefreshCw className={`h-3 w-3 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3 w-3 mr-2 ${isPending ? 'animate-spin' : ''}`} />
               Regenerate Token
             </Button>
           </CardContent>
