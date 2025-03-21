@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Projects from "./pages/Projects";
 import ProjectDetail from "./pages/ProjectDetail";
 import TestDetail from "./pages/TestDetail";
+import ApiIntegration from "./pages/ApiIntegration";
 import DocumentationPage from "./pages/Documentation";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +32,7 @@ const App = () => (
           <Route path="/projects" element={<Projects />} />
           <Route path="/projects/:projectId" element={<ProjectDetail />} />
           <Route path="/projects/:projectId/tests/:testId" element={<TestDetail />} />
+          <Route path="/projects/:projectId/api" element={<ApiIntegration />} />
           <Route path="/docs" element={<DocumentationPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

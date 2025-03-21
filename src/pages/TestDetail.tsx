@@ -1,5 +1,4 @@
-
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/api";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { useParams, useNavigate } from "react-router-dom";
@@ -15,6 +14,7 @@ import { ChevronLeft, Info, CheckCircle, XCircle, AlertCircle, Monitor, CheckIco
 const TestDetail = () => {
   const { projectId, testId } = useParams<{ projectId: string; testId: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   // Fetch test data
   const { data: testResponse, isLoading: isLoadingTest } = useQuery({
@@ -28,6 +28,25 @@ const TestDetail = () => {
     queryKey: ["snapshots", testId],
     queryFn: () => apiClient.getSnapshots(testId!),
     enabled: !!testId,
+  });
+
+  // Mutations for approving and rejecting snapshots
+  const approveMutation = useMutation({
+    mutationFn: (snapshotId: string) => apiClient.approveSnapshot(snapshotId),
+    onSuccess: (data) => {
+      toast.success("Snapshot approved");
+      queryClient.invalidateQueries({ queryKey: ["snapshots", testId] });
+      queryClient.invalidateQueries({ queryKey: ["test", testId] });
+    }
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (snapshotId: string) => apiClient.rejectSnapshot(snapshotId),
+    onSuccess: (data) => {
+      toast.error("Snapshot rejected");
+      queryClient.invalidateQueries({ queryKey: ["snapshots", testId] });
+      queryClient.invalidateQueries({ queryKey: ["test", testId] });
+    }
   });
 
   const test = testResponse?.data;
@@ -75,22 +94,12 @@ const TestDetail = () => {
     }
   };
 
-  const handleApproveSnapshot = async (snapshotId: string) => {
-    try {
-      await apiClient.approveSnapshot(snapshotId);
-      toast.success("Snapshot approved");
-    } catch (error) {
-      console.error("Failed to approve snapshot:", error);
-    }
+  const handleApproveSnapshot = (snapshotId: string) => {
+    approveMutation.mutate(snapshotId);
   };
 
-  const handleRejectSnapshot = async (snapshotId: string) => {
-    try {
-      await apiClient.rejectSnapshot(snapshotId);
-      toast.error("Snapshot rejected");
-    } catch (error) {
-      console.error("Failed to reject snapshot:", error);
-    }
+  const handleRejectSnapshot = (snapshotId: string) => {
+    rejectMutation.mutate(snapshotId);
   };
 
   if (isLoadingTest) {
@@ -175,7 +184,7 @@ const TestDetail = () => {
             </div>
             <div className="flex flex-col items-center justify-center p-4 bg-red-50 rounded-md">
               <div className="text-4xl font-bold text-red-600">
-                {snapshots.filter(s => s.status === "failed" || s.status === "rejected").length}
+                {snapshots.filter(s => ["failed", "rejected"].includes(s.status)).length}
               </div>
               <div className="text-sm text-red-600/80 mt-1">Failed</div>
             </div>
@@ -259,7 +268,7 @@ const TestDetail = () => {
                 )}
                 
                 <div className="flex items-center gap-2">
-                  {(snapshot.status === "failed" || snapshot.status === "new" || snapshot.status === "pending") && (
+                  {(["failed", "new", "pending"].includes(snapshot.status)) && (
                     <>
                       <Button 
                         variant="outline" 
