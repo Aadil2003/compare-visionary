@@ -1,0 +1,134 @@
+
+import { useState, useRef, useEffect } from "react";
+import { cn } from "@/lib/utils";
+
+interface CompareSliderProps {
+  beforeImage: string;
+  afterImage: string;
+  className?: string;
+  aspectRatio?: string;
+}
+
+export function CompareSlider({
+  beforeImage,
+  afterImage,
+  className,
+  aspectRatio = "16/9",
+}: CompareSliderProps) {
+  const [position, setPosition] = useState(50);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const handleRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
+
+  const updatePosition = (clientX: number) => {
+    if (!containerRef.current) return;
+    
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const containerWidth = containerRect.width;
+    const relativeX = clientX - containerRect.left;
+    const newPosition = Math.max(0, Math.min(100, (relativeX / containerWidth) * 100));
+    
+    setPosition(newPosition);
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault();
+    isDragging.current = true;
+    updatePosition(e.clientX);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    isDragging.current = true;
+    updatePosition(e.touches[0].clientX);
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return;
+      updatePosition(e.clientX);
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current) return;
+      updatePosition(e.touches[0].clientX);
+    };
+
+    const handleEnd = () => {
+      isDragging.current = false;
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleEnd);
+    window.addEventListener("touchmove", handleTouchMove);
+    window.addEventListener("touchend", handleEnd);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleEnd);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleEnd);
+    };
+  }, []);
+
+  return (
+    <div 
+      ref={containerRef}
+      className={cn("relative overflow-hidden rounded-lg border cursor-ew-resize select-none", className)}
+      style={{ aspectRatio }}
+    >
+      {/* Before image (full width) */}
+      <div className="absolute inset-0">
+        <img 
+          src={beforeImage} 
+          alt="Before" 
+          className="w-full h-full object-cover"
+          draggable="false"
+        />
+      </div>
+      
+      {/* After image (clipped) */}
+      <div 
+        className="absolute inset-0 overflow-hidden" 
+        style={{ width: `${position}%` }}
+      >
+        <img 
+          src={afterImage} 
+          alt="After" 
+          className="absolute top-0 left-0 w-full h-full object-cover"
+          style={{ width: `${100 / (position / 100)}%` }}
+          draggable="false"
+        />
+      </div>
+      
+      {/* Divider line */}
+      <div 
+        className="absolute inset-y-0 w-0.5 bg-white shadow-[0_0_10px_rgba(0,0,0,0.3)]"
+        style={{ left: `${position}%` }}
+      />
+      
+      {/* Drag handle */}
+      <div 
+        ref={handleRef}
+        className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md cursor-grab active:cursor-grabbing"
+        style={{ left: `${position}%` }}
+        onMouseDown={handleMouseDown}
+        onTouchStart={handleTouchStart}
+      >
+        <div className="w-5 h-5 flex items-center justify-center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <path d="M18 8L22 12L18 16" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M6 8L2 12L6 16" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      </div>
+      
+      {/* Labels */}
+      <div className="absolute bottom-2 left-2 bg-black/50 text-white px-2 py-1 text-xs rounded">
+        Before
+      </div>
+      <div className="absolute bottom-2 right-2 bg-black/50 text-white px-2 py-1 text-xs rounded">
+        After
+      </div>
+    </div>
+  );
+}
