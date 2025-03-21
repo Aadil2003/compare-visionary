@@ -27,7 +27,7 @@ export interface Snapshot {
   testId: string;
   projectId: string;
   name: string;
-  status: 'approved' | 'rejected' | 'pending' | 'new';
+  status: 'approved' | 'rejected' | 'pending' | 'new' | 'failed';
   baselineUrl: string | null;
   currentUrl: string;
   diffUrl: string | null;
