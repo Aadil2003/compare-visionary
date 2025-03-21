@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/services/api";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -10,11 +11,14 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { CompareSlider } from "@/components/ui/compare-slider";
 import { toast } from "sonner";
 import { ChevronLeft, Info, CheckCircle, XCircle, AlertCircle, Monitor, CheckIcon, XIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { isSignificantChange } from "@/utils/imageComparison";
 
 const TestDetail = () => {
   const { projectId, testId } = useParams<{ projectId: string; testId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [processedSnapshots, setProcessedSnapshots] = useState<Record<string, { diffImageUrl?: string }>>({});
 
   // Fetch test data
   const { data: testResponse, isLoading: isLoadingTest } = useQuery({
@@ -49,8 +53,49 @@ const TestDetail = () => {
     }
   });
 
+  const setAsBaselineMutation = useMutation({
+    mutationFn: (snapshotId: string) => apiClient.setAsBaseline(snapshotId),
+    onSuccess: (data) => {
+      toast.success("Snapshot set as baseline");
+      queryClient.invalidateQueries({ queryKey: ["snapshots", testId] });
+      queryClient.invalidateQueries({ queryKey: ["test", testId] });
+    }
+  });
+
   const test = testResponse?.data;
   const snapshots = snapshotsResponse?.data || [];
+
+  // Process snapshots to generate diff images
+  useEffect(() => {
+    const processSnapshotImages = async () => {
+      const newProcessedSnapshots: Record<string, { diffImageUrl?: string }> = {};
+      
+      for (const snapshot of snapshots) {
+        // Only perform comparison if there's both a baseline and current image
+        if (snapshot.baselineUrl && snapshot.currentUrl) {
+          try {
+            // Only generate diff if not already available
+            if (!snapshot.diffUrl) {
+              const { diffImageUrl } = await apiClient.compareSnapshotImages(
+                snapshot.baselineUrl,
+                snapshot.currentUrl
+              );
+              
+              newProcessedSnapshots[snapshot.id] = { diffImageUrl };
+            }
+          } catch (error) {
+            console.error(`Error processing snapshot ${snapshot.id}:`, error);
+          }
+        }
+      }
+      
+      setProcessedSnapshots(prev => ({ ...prev, ...newProcessedSnapshots }));
+    };
+    
+    if (snapshots.length > 0) {
+      processSnapshotImages();
+    }
+  }, [snapshots]);
 
   // Function to get status badge
   const getStatusBadge = (status: string) => {
@@ -100,6 +145,10 @@ const TestDetail = () => {
 
   const handleRejectSnapshot = (snapshotId: string) => {
     rejectMutation.mutate(snapshotId);
+  };
+
+  const handleSetAsBaseline = (snapshotId: string) => {
+    setAsBaselineMutation.mutate(snapshotId);
   };
 
   if (isLoadingTest) {
@@ -207,100 +256,109 @@ const TestDetail = () => {
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {snapshots.map((snapshot) => (
-            <Card key={snapshot.id} className="overflow-hidden">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{snapshot.name}</CardTitle>
-                  {getStatusBadge(snapshot.status)}
-                </div>
-                <CardDescription className="flex items-center gap-1">
-                  <Monitor className="h-3 w-3" />
-                  {snapshot.browser} ({snapshot.viewport})
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-4">
-                {snapshot.diffUrl ? (
-                  <CompareSlider
-                    beforeImage={snapshot.baselineUrl || ""}
-                    afterImage={snapshot.currentUrl}
-                    className="mb-4"
-                  />
-                ) : snapshot.baselineUrl ? (
-                  <img 
-                    src={snapshot.currentUrl} 
-                    alt={snapshot.name}
-                    className="w-full h-auto rounded-md mb-4"
-                  />
-                ) : (
-                  <div className="relative">
+          {snapshots.map((snapshot) => {
+            // Determine which diffUrl to use - from the API or generated locally
+            const effectiveDiffUrl = 
+              snapshot.diffUrl || 
+              (processedSnapshots[snapshot.id]?.diffImageUrl);
+
+            return (
+              <Card key={snapshot.id} className="overflow-hidden">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{snapshot.name}</CardTitle>
+                    {getStatusBadge(snapshot.status)}
+                  </div>
+                  <CardDescription className="flex items-center gap-1">
+                    <Monitor className="h-3 w-3" />
+                    {snapshot.browser} ({snapshot.viewport})
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pb-4">
+                  {effectiveDiffUrl && snapshot.baselineUrl ? (
+                    <CompareSlider
+                      beforeImage={snapshot.baselineUrl}
+                      afterImage={snapshot.currentUrl}
+                      className="mb-4"
+                      diffPercentage={snapshot.diffPercentage || 0}
+                    />
+                  ) : snapshot.baselineUrl ? (
                     <img 
                       src={snapshot.currentUrl} 
                       alt={snapshot.name}
                       className="w-full h-auto rounded-md mb-4"
                     />
-                    <Badge className="absolute top-2 right-2 bg-blue-500">New</Badge>
-                  </div>
-                )}
-                
-                {snapshot.diffPercentage !== null && (
-                  <div className="mb-4">
-                    <div className="text-sm font-medium">Difference</div>
-                    <div className="flex items-center gap-2">
-                      <div 
-                        className={`text-lg font-semibold ${
-                          snapshot.diffPercentage > 5 ? "text-red-600" : "text-green-600"
-                        }`}
-                      >
-                        {snapshot.diffPercentage.toFixed(2)}%
-                      </div>
-                      {snapshot.diffPercentage > 5 ? (
-                        <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
-                          Significant change
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
-                          Minor change
-                        </Badge>
-                      )}
+                  ) : (
+                    <div className="relative">
+                      <img 
+                        src={snapshot.currentUrl} 
+                        alt={snapshot.name}
+                        className="w-full h-auto rounded-md mb-4"
+                      />
+                      <Badge className="absolute top-2 right-2 bg-blue-500">New</Badge>
                     </div>
-                  </div>
-                )}
-                
-                <div className="flex items-center gap-2">
-                  {(["failed", "new", "pending"].includes(snapshot.status)) && (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
-                        onClick={() => handleApproveSnapshot(snapshot.id)}
-                      >
-                        <CheckIcon className="h-4 w-4 mr-2" />
-                        Approve
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
-                        onClick={() => handleRejectSnapshot(snapshot.id)}
-                      >
-                        <XIcon className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                    </>
                   )}
                   
-                  {snapshot.status === "approved" && (
-                    <Button 
-                      variant="outline"
-                      className="w-full"
-                    >
-                      Set as Baseline
-                    </Button>
+                  {snapshot.diffPercentage !== null && (
+                    <div className="mb-4">
+                      <div className="text-sm font-medium">Difference</div>
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className={`text-lg font-semibold ${
+                            isSignificantChange(snapshot.diffPercentage) ? "text-red-600" : "text-green-600"
+                          }`}
+                        >
+                          {snapshot.diffPercentage.toFixed(2)}%
+                        </div>
+                        {isSignificantChange(snapshot.diffPercentage) ? (
+                          <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
+                            Significant change
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+                            Minor change
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
                   )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  
+                  <div className="flex items-center gap-2">
+                    {(["failed", "new", "pending"].includes(snapshot.status)) && (
+                      <>
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                          onClick={() => handleApproveSnapshot(snapshot.id)}
+                        >
+                          <CheckIcon className="h-4 w-4 mr-2" />
+                          Approve
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="flex-1 bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                          onClick={() => handleRejectSnapshot(snapshot.id)}
+                        >
+                          <XIcon className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                      </>
+                    )}
+                    
+                    {snapshot.status === "approved" && (
+                      <Button 
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => handleSetAsBaseline(snapshot.id)}
+                      >
+                        Set as Baseline
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </PageLayout>

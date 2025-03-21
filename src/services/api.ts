@@ -1,5 +1,6 @@
 import { ApiResponse, Project, Snapshot, Test } from "@/types/models";
 import { toast } from "sonner";
+import { compareImages, isSignificantChange } from "@/utils/imageComparison";
 
 // Mock data for our demo
 const MOCK_PROJECTS: Project[] = [
@@ -387,6 +388,18 @@ class ApiClient {
     }
   }
 
+  async compareSnapshotImages(baselineUrl: string, currentUrl: string): Promise<{ diffPercentage: number, diffImageUrl: string }> {
+    try {
+      // Use the compareImages utility function to perform the comparison
+      const result = await compareImages(baselineUrl, currentUrl);
+      return result;
+    } catch (error) {
+      console.error("Error comparing images:", error);
+      toast.error("Failed to compare images");
+      throw error;
+    }
+  }
+
   async approveSnapshot(id: string): Promise<ApiResponse<Snapshot>> {
     try {
       await delay(1000);
@@ -438,6 +451,37 @@ class ApiClient {
       };
     } catch (error) {
       toast.error("Failed to reject snapshot");
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async setAsBaseline(snapshotId: string): Promise<ApiResponse<Snapshot>> {
+    try {
+      await delay(1000);
+      
+      const snapshot = Object.values(MOCK_SNAPSHOTS)
+        .flat()
+        .find(s => s.id === snapshotId);
+      
+      if (!snapshot) {
+        throw new Error("Snapshot not found");
+      }
+      
+      // Set current image as baseline
+      snapshot.baselineUrl = snapshot.currentUrl;
+      snapshot.diffUrl = null;
+      snapshot.diffPercentage = 0;
+      snapshot.status = "approved";
+      snapshot.updatedAt = new Date().toISOString();
+      
+      return {
+        data: snapshot,
+        status: 200,
+        message: "Snapshot set as baseline",
+      };
+    } catch (error) {
+      toast.error("Failed to set snapshot as baseline");
       console.error(error);
       throw error;
     }

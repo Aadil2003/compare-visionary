@@ -7,6 +7,7 @@ interface CompareSliderProps {
   afterImage: string;
   className?: string;
   aspectRatio?: string;
+  diffPercentage?: number;
 }
 
 export function CompareSlider({
@@ -14,6 +15,7 @@ export function CompareSlider({
   afterImage,
   className,
   aspectRatio = "16/9",
+  diffPercentage,
 }: CompareSliderProps) {
   const [position, setPosition] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +123,15 @@ export function CompareSlider({
           </svg>
         </div>
       </div>
+      
+      {/* Difference indicator */}
+      {diffPercentage !== undefined && (
+        <div className={`absolute top-2 right-2 px-2 py-1 rounded text-xs font-medium ${
+          diffPercentage > 5 ? "bg-red-500 text-white" : "bg-green-500 text-white"
+        }`}>
+          {diffPercentage.toFixed(2)}% diff
+        </div>
+      )}
       
       {/* Labels */}
       <div className="absolute bottom-2 left-2 bg-black/50 text-white px-2 py-1 text-xs rounded">
