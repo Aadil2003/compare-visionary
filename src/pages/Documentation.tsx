@@ -1,4 +1,3 @@
-
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,6 +37,7 @@ const DocumentationPage = () => {
               <TabsTrigger value="getting-started">Getting Started</TabsTrigger>
               <TabsTrigger value="api">API Reference</TabsTrigger>
               <TabsTrigger value="examples">Examples</TabsTrigger>
+              <TabsTrigger value="technology">Technology</TabsTrigger>
             </TabsList>
           </div>
 
@@ -753,6 +753,120 @@ pipeline {
                     </div>
                   </TabsContent>
                 </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="technology" className="space-y-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Under the Hood</CardTitle>
+                <CardDescription>
+                  Learn about the technologies powering Visually
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Image Comparison</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Visually uses the open-source library resemble.js for high-performance pixel-by-pixel image comparison.
+                  </p>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="text-sm font-semibold mb-2">Key Features</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      <li>Pixel-by-pixel comparison with configurable tolerance levels</li>
+                      <li>Support for multiple comparison methods (RGB, HSLA, etc.)</li>
+                      <li>Ability to ignore colors and focus on structure</li>
+                      <li>Generation of visual diff images highlighting changes</li>
+                      <li>Performance optimized for large image sets</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <h4 className="text-sm font-semibold mb-2">Code Example</h4>
+                    <div className="relative">
+                      <pre className="bg-black p-4 rounded-md overflow-x-auto font-mono text-sm text-white">
+                        <code>{`// Using resemble.js for image comparison
+import resemble from 'resemblejs';
+
+resemble(image1)
+  .compareTo(image2)
+  .ignoreColors()
+  .onComplete(data => {
+    console.log('Difference: ' + data.misMatchPercentage + '%');
+    // Get the diff image
+    const diffImage = data.getImageDataUrl();
+  });`}</code>
+                      </pre>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2"
+                        onClick={() => copyToClipboard(`// Using resemble.js for image comparison
+import resemble from 'resemblejs';
+
+resemble(image1)
+  .compareTo(image2)
+  .ignoreColors()
+  .onComplete(data => {
+    console.log('Difference: ' + data.misMatchPercentage + '%');
+    // Get the diff image
+    const diffImage = data.getImageDataUrl();
+  });`, "Resemblejs example")}
+                      >
+                        {copiedCode?.includes("resemble.js") ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-white" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-2">Analysis Algorithms</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Visually employs sophisticated algorithms to determine significance of visual changes.
+                  </p>
+                  <div className="bg-muted p-4 rounded-lg">
+                    <h4 className="text-sm font-semibold mb-2">Our Analysis Includes</h4>
+                    <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                      <li>Difference percentage thresholds for pass/fail determinations</li>
+                      <li>Region-based analysis to ignore dynamic content</li>
+                      <li>Smart detection of layout shifts vs. content changes</li>
+                      <li>Customizable sensitivity settings per project</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-medium mb-2">Architecture</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Visually is built with a modern, scalable architecture.
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex-1 bg-muted p-4 rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2">Frontend</h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        <li>React with TypeScript</li>
+                        <li>TanStack Query for data fetching</li>
+                        <li>Tailwind CSS for styling</li>
+                        <li>Shadcn UI for component library</li>
+                      </ul>
+                    </div>
+                    <div className="flex-1 bg-muted p-4 rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2">Backend</h4>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                        <li>Node.js API with Express</li>
+                        <li>Image processing with resemble.js</li>
+                        <li>Optimized storage for baseline images</li>
+                        <li>Webhooks for CI/CD integration</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
               </CardContent>
             </Card>
           </TabsContent>

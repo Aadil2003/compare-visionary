@@ -2,6 +2,14 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Interface for the CompareSlider component props
+ * @prop beforeImage - URL of the first/baseline image
+ * @prop afterImage - URL of the second/current image
+ * @prop className - Optional additional CSS classes
+ * @prop aspectRatio - Optional aspect ratio for the container (default: "16/9")
+ * @prop diffPercentage - Optional percentage difference between images to display
+ */
 interface CompareSliderProps {
   beforeImage: string;
   afterImage: string;
@@ -10,6 +18,11 @@ interface CompareSliderProps {
   diffPercentage?: number;
 }
 
+/**
+ * A slider component that allows visual comparison between two images
+ * Uses a draggable divider to reveal portions of each image
+ * Optionally displays the difference percentage between images
+ */
 export function CompareSlider({
   beforeImage,
   afterImage,
@@ -22,6 +35,10 @@ export function CompareSlider({
   const handleRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
+  /**
+   * Updates the slider position based on mouse/touch position
+   * @param clientX - The X coordinate of the pointer
+   */
   const updatePosition = (clientX: number) => {
     if (!containerRef.current) return;
     
@@ -44,6 +61,7 @@ export function CompareSlider({
     updatePosition(e.touches[0].clientX);
   };
 
+  // Set up event listeners for dragging
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging.current) return;
