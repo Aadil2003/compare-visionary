@@ -1,4 +1,3 @@
-
 import { ApiResponse, Project, Snapshot, Test } from "@/types/models";
 import { toast } from "sonner";
 
@@ -194,6 +193,11 @@ const MOCK_SNAPSHOTS: Record<string, Snapshot[]> = {
 // Helper for simulating API delays
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+// Helper to generate a random ID
+const generateId = (prefix: string) => {
+  return `${prefix}-${Math.random().toString(36).substring(2, 10)}`;
+};
+
 // API Client
 class ApiClient {
   // Projects API
@@ -227,6 +231,37 @@ class ApiClient {
       };
     } catch (error) {
       toast.error("Failed to fetch project details");
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async createProject(name: string, description: string = ""): Promise<ApiResponse<Project>> {
+    try {
+      await delay(1000);
+      
+      const now = new Date().toISOString();
+      const newProject: Project = {
+        id: generateId("proj"),
+        name,
+        description,
+        token: `tk_${Math.random().toString(36).substring(2, 15)}`,
+        createdAt: now,
+        updatedAt: now,
+        testCount: 0,
+        snapshots: 0,
+      };
+      
+      MOCK_PROJECTS.unshift(newProject);
+      MOCK_TESTS[newProject.id] = [];
+      
+      return {
+        data: newProject,
+        status: 201,
+        message: "Project created successfully",
+      };
+    } catch (error) {
+      toast.error("Failed to create project");
       console.error(error);
       throw error;
     }
@@ -266,6 +301,48 @@ class ApiClient {
       };
     } catch (error) {
       toast.error("Failed to fetch test details");
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async createTest(projectId: string, name: string, browser: string, viewport: string): Promise<ApiResponse<Test>> {
+    try {
+      await delay(800);
+      
+      const now = new Date().toISOString();
+      const newTest: Test = {
+        id: generateId("test"),
+        projectId,
+        name,
+        status: "pending",
+        createdAt: now,
+        updatedAt: now,
+        browser,
+        viewport,
+        snapshotCount: 0,
+      };
+      
+      if (!MOCK_TESTS[projectId]) {
+        MOCK_TESTS[projectId] = [];
+      }
+      
+      MOCK_TESTS[projectId].unshift(newTest);
+      
+      // Update project test count
+      const project = MOCK_PROJECTS.find(p => p.id === projectId);
+      if (project) {
+        project.testCount += 1;
+        project.updatedAt = now;
+      }
+      
+      return {
+        data: newTest,
+        status: 201,
+        message: "Test created successfully",
+      };
+    } catch (error) {
+      toast.error("Failed to create test");
       console.error(error);
       throw error;
     }

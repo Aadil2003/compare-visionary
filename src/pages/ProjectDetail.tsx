@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/services/api";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -20,6 +19,7 @@ const ProjectDetail = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [testsSection, setTestsSection] = useState<HTMLElement | null>(null);
 
   // Fetch project data
   const { data: projectResponse, isLoading: isLoadingProject } = useQuery({
@@ -58,6 +58,13 @@ const ProjectDetail = () => {
     
     navigator.clipboard.writeText(project.token);
     toast.success("Token copied to clipboard");
+  };
+
+  const scrollToTests = () => {
+    const testsSection = document.getElementById('tests-section');
+    if (testsSection) {
+      testsSection.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   // Function to get status badge
@@ -152,7 +159,11 @@ const ProjectDetail = () => {
             <Eye className="h-4 w-4 mr-2" />
             API Token
           </Button>
-          <Button size="sm" className="rounded-full">
+          <Button 
+            size="sm" 
+            className="rounded-full"
+            onClick={scrollToTests}
+          >
             Go to Tests
           </Button>
         </div>
@@ -197,7 +208,7 @@ const ProjectDetail = () => {
         </Card>
       </div>
 
-      <div className="mb-8">
+      <div className="mb-8" id="tests-section">
         <h2 className="text-xl font-semibold mb-6">Recent Tests</h2>
         
         <Tabs defaultValue="all">

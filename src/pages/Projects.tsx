@@ -7,17 +7,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Image, Search, Plus, Calendar, Activity, Clock, BarChart, ArrowUpRight } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 const Projects = () => {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [projectName, setProjectName] = useState("");
+  const [projectDescription, setProjectDescription] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
-  const { data: projectsResponse, isLoading } = useQuery({
+  const { data: projectsResponse, isLoading, refetch } = useQuery({
     queryKey: ["projects"],
     queryFn: () => apiClient.getProjects(),
   });
@@ -30,10 +38,45 @@ const Projects = () => {
   );
 
   const handleCreateProject = () => {
-    toast({
-      title: "Coming soon",
-      description: "Project creation will be available in the next update."
-    });
+    setIsDialogOpen(true);
+  };
+
+  const createProject = async () => {
+    if (!projectName.trim()) {
+      toast({
+        title: "Error",
+        description: "Project name is required"
+      });
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      const response = await apiClient.createProject(projectName, projectDescription);
+      
+      toast({
+        title: "Success!",
+        description: "Project created successfully"
+      });
+      
+      // Reset form and close dialog
+      setIsDialogOpen(false);
+      setProjectName("");
+      setProjectDescription("");
+      
+      // Refresh projects list
+      refetch();
+      
+      // Navigate to the new project
+      navigate(`/projects/${response.data.id}`);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create project"
+      });
+    } finally {
+      setIsCreating(false);
+    }
   };
 
   return (
@@ -216,6 +259,52 @@ const Projects = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Create project dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Project</DialogTitle>
+            <DialogDescription>
+              Set up a new visual testing project to start tracking UI changes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Project Name</Label>
+              <Input 
+                id="name" 
+                placeholder="E.g., Company Website" 
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description (Optional)</Label>
+              <Textarea 
+                id="description" 
+                placeholder="Brief description of your project" 
+                value={projectDescription}
+                onChange={(e) => setProjectDescription(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={createProject} 
+              disabled={isCreating}
+            >
+              {isCreating ? 'Creating...' : 'Create Project'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </PageLayout>
   );
 };
