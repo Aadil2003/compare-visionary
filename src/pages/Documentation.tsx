@@ -1433,8 +1433,8 @@ pipeline {
                                 fingerprintArtifacts: true,
                                 optional: true
                             )
-                        } catch (Exception e) {
-                            echo "Warning: Could not download baselines from main. ${e.message}"
+                        } catch (error) {
+                            echo "Warning: Could not download baselines from main. \${error.message}"
                         }
                     }
                 }
@@ -1522,8 +1522,8 @@ pipeline {
                                 fingerprintArtifacts: true,
                                 optional: true
                             )
-                        } catch (Exception e) {
-                            echo "Warning: Could not download baselines from main. ${e.message}"
+                        } catch (error) {
+                            echo "Warning: Could not download baselines from main. \${error.message}"
                         }
                     }
                 }
