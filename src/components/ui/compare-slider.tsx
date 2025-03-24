@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
  * @prop className - Optional additional CSS classes
  * @prop aspectRatio - Optional aspect ratio for the container (default: "16/9")
  * @prop diffPercentage - Optional percentage difference between images to display
+ * @prop diffImageUrl - Optional URL for the difference image to display in tooltip
  */
 interface CompareSliderProps {
   beforeImage: string;
@@ -16,6 +17,7 @@ interface CompareSliderProps {
   className?: string;
   aspectRatio?: string;
   diffPercentage?: number;
+  diffImageUrl?: string;
 }
 
 /**
@@ -29,8 +31,10 @@ export function CompareSlider({
   className,
   aspectRatio = "16/9",
   diffPercentage,
+  diffImageUrl,
 }: CompareSliderProps) {
   const [position, setPosition] = useState(50);
+  const [showDiffTooltip, setShowDiffTooltip] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -126,13 +130,15 @@ export function CompareSlider({
         style={{ left: `${position}%` }}
       />
       
-      {/* Drag handle */}
+      {/* Drag handle with interactive diff tooltip */}
       <div 
         ref={handleRef}
         className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-md cursor-grab active:cursor-grabbing"
         style={{ left: `${position}%` }}
         onMouseDown={handleMouseDown}
         onTouchStart={handleTouchStart}
+        onMouseEnter={() => diffImageUrl && setShowDiffTooltip(true)}
+        onMouseLeave={() => setShowDiffTooltip(false)}
       >
         <div className="w-5 h-5 flex items-center justify-center">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
@@ -140,6 +146,20 @@ export function CompareSlider({
             <path d="M6 8L2 12L6 16" stroke="black" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
+        
+        {/* Diff image tooltip */}
+        {showDiffTooltip && diffImageUrl && (
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 bg-white rounded-md shadow-lg p-2 w-48 z-10">
+            <img 
+              src={diffImageUrl} 
+              alt="Diff" 
+              className="w-full h-auto rounded"
+            />
+            <div className="text-xs text-center mt-1 font-medium">
+              Difference: {diffPercentage?.toFixed(2)}%
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Difference indicator */}

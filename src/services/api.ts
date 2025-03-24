@@ -204,7 +204,6 @@ class ApiClient {
   // Projects API
   async getProjects(): Promise<ApiResponse<Project[]>> {
     try {
-      // Simulate API delay
       await delay(800);
       return {
         data: MOCK_PROJECTS,
@@ -390,12 +389,19 @@ class ApiClient {
 
   async compareSnapshotImages(baselineUrl: string, currentUrl: string): Promise<{ diffPercentage: number, diffImageUrl: string }> {
     try {
-      // Use the compareImages utility function to perform the comparison
+      // Use the compareImages utility function to perform the comparison using resemble.js
       const result = await compareImages(baselineUrl, currentUrl);
-      return result;
+      
+      // Add a small delay to simulate API latency
+      await delay(300);
+      
+      return {
+        diffPercentage: result.diffPercentage,
+        diffImageUrl: result.diffImageUrl
+      };
     } catch (error) {
       console.error("Error comparing images:", error);
-      toast.error("Failed to compare images");
+      toast.error("Failed to compare images using resemble.js");
       throw error;
     }
   }

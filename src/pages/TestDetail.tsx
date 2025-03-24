@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CompareSlider } from "@/components/ui/compare-slider";
 import { toast } from "sonner";
-import { ChevronLeft, Info, CheckCircle, XCircle, AlertCircle, Monitor, CheckIcon, XIcon } from "lucide-react";
+import { ChevronLeft, Info, CheckCircle, XCircle, AlertCircle, Monitor, CheckIcon, XIcon, Eye, RotateCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import { isSignificantChange } from "@/utils/imageComparison";
 
@@ -18,7 +18,8 @@ const TestDetail = () => {
   const { projectId, testId } = useParams<{ projectId: string; testId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [processedSnapshots, setProcessedSnapshots] = useState<Record<string, { diffImageUrl?: string }>>({});
+  const [processedSnapshots, setProcessedSnapshots] = useState<Record<string, { diffImageUrl?: string; diffPercentage?: number }>>({});
+  const [activeComparisonMode, setActiveComparisonMode] = useState<string | null>(null);
 
   // Fetch test data
   const { data: testResponse, isLoading: isLoadingTest } = useQuery({
@@ -65,10 +66,12 @@ const TestDetail = () => {
   const test = testResponse?.data;
   const snapshots = snapshotsResponse?.data || [];
 
-  // Process snapshots to generate diff images
+  // Process snapshots to generate diff images using resemble.js
   useEffect(() => {
     const processSnapshotImages = async () => {
-      const newProcessedSnapshots: Record<string, { diffImageUrl?: string }> = {};
+      if (activeComparisonMode) return; // Don't process if actively comparing
+      
+      const newProcessedSnapshots: Record<string, { diffImageUrl?: string; diffPercentage?: number }> = {};
       
       for (const snapshot of snapshots) {
         // Only perform comparison if there's both a baseline and current image
@@ -76,12 +79,15 @@ const TestDetail = () => {
           try {
             // Only generate diff if not already available
             if (!snapshot.diffUrl) {
-              const { diffImageUrl } = await apiClient.compareSnapshotImages(
+              const { diffImageUrl, diffPercentage } = await apiClient.compareSnapshotImages(
                 snapshot.baselineUrl,
                 snapshot.currentUrl
               );
               
-              newProcessedSnapshots[snapshot.id] = { diffImageUrl };
+              newProcessedSnapshots[snapshot.id] = { 
+                diffImageUrl,
+                diffPercentage
+              };
             }
           } catch (error) {
             console.error(`Error processing snapshot ${snapshot.id}:`, error);
@@ -95,7 +101,39 @@ const TestDetail = () => {
     if (snapshots.length > 0) {
       processSnapshotImages();
     }
-  }, [snapshots]);
+  }, [snapshots, activeComparisonMode]);
+
+  // Handler for running a comparison with different options
+  const handleCompare = async (snapshotId: string, mode: string) => {
+    const snapshot = snapshots.find(s => s.id === snapshotId);
+    if (!snapshot || !snapshot.baselineUrl || !snapshot.currentUrl) return;
+    
+    setActiveComparisonMode(snapshotId + mode);
+    
+    try {
+      toast.info(`Running ${mode} comparison...`);
+      
+      const result = await apiClient.compareSnapshotImages(
+        snapshot.baselineUrl,
+        snapshot.currentUrl
+      );
+      
+      setProcessedSnapshots(prev => ({
+        ...prev,
+        [snapshotId]: {
+          diffImageUrl: result.diffImageUrl,
+          diffPercentage: result.diffPercentage
+        }
+      }));
+      
+      toast.success(`${mode} comparison complete`);
+    } catch (error) {
+      console.error(`Error during ${mode} comparison:`, error);
+      toast.error(`Failed to run ${mode} comparison`);
+    } finally {
+      setActiveComparisonMode(null);
+    }
+  };
 
   // Function to get status badge
   const getStatusBadge = (status: string) => {
@@ -257,10 +295,17 @@ const TestDetail = () => {
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {snapshots.map((snapshot) => {
-            // Determine which diffUrl to use - from the API or generated locally
+            // Determine which diff info to use - from the API or generated locally
             const effectiveDiffUrl = 
               snapshot.diffUrl || 
               (processedSnapshots[snapshot.id]?.diffImageUrl);
+              
+            const effectiveDiffPercentage = 
+              snapshot.diffPercentage !== null ? 
+              snapshot.diffPercentage : 
+              processedSnapshots[snapshot.id]?.diffPercentage;
+
+            const isComparing = activeComparisonMode === snapshot.id + "standard";
 
             return (
               <Card key={snapshot.id} className="overflow-hidden">
@@ -280,7 +325,8 @@ const TestDetail = () => {
                       beforeImage={snapshot.baselineUrl}
                       afterImage={snapshot.currentUrl}
                       className="mb-4"
-                      diffPercentage={snapshot.diffPercentage || 0}
+                      diffPercentage={effectiveDiffPercentage || 0}
+                      diffImageUrl={effectiveDiffUrl}
                     />
                   ) : snapshot.baselineUrl ? (
                     <img 
@@ -299,18 +345,18 @@ const TestDetail = () => {
                     </div>
                   )}
                   
-                  {snapshot.diffPercentage !== null && (
+                  {effectiveDiffPercentage !== undefined && effectiveDiffPercentage !== null && (
                     <div className="mb-4">
                       <div className="text-sm font-medium">Difference</div>
                       <div className="flex items-center gap-2">
                         <div 
                           className={`text-lg font-semibold ${
-                            isSignificantChange(snapshot.diffPercentage) ? "text-red-600" : "text-green-600"
+                            isSignificantChange(effectiveDiffPercentage) ? "text-red-600" : "text-green-600"
                           }`}
                         >
-                          {snapshot.diffPercentage.toFixed(2)}%
+                          {effectiveDiffPercentage.toFixed(2)}%
                         </div>
-                        {isSignificantChange(snapshot.diffPercentage) ? (
+                        {isSignificantChange(effectiveDiffPercentage) ? (
                           <Badge variant="outline" className="bg-red-50 text-red-600 border-red-200">
                             Significant change
                           </Badge>
@@ -320,6 +366,26 @@ const TestDetail = () => {
                           </Badge>
                         )}
                       </div>
+                    </div>
+                  )}
+                  
+                  {/* Image comparison options - only show if both baseline and current exist */}
+                  {snapshot.baselineUrl && snapshot.currentUrl && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleCompare(snapshot.id, "standard")}
+                        disabled={isComparing}
+                        className="flex-1 text-xs"
+                      >
+                        {isComparing ? (
+                          <RotateCw className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Eye className="h-3 w-3 mr-1" />
+                        )}
+                        Recompare
+                      </Button>
                     </div>
                   )}
                   
